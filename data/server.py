@@ -39,6 +39,21 @@ class Server(object):
 
     # HELPERS
 
+    def _assure_exp_table(self) -> None:
+        # execute a quick statement
+        result = self.conn.execute('SELECT name FROM sqlite_master WHERE type=\'table\' AND name=\'server_%s\'' % self.id)
+
+        if result.fetchone() is None:
+            # exp table doesn't exist, create it
+            self.conn.execute("""
+            CREATE TABLE server_%s (
+                user_id INTEGER PRIMARY KEY,
+                level INTEGER NOT NULL,
+                cur_exp INTEGER NOT NULL,
+                total_exp INTEGER NOT NULL
+            )
+            """ % self.id)
+
     def _update_allowed_channels(self) -> None:
         # serialize the list
         list_repr = ','.join(str(chnl_id) for chnl_id in self.allowed_channels)

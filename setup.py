@@ -1,18 +1,14 @@
 import discord.ext.commands
 import options
-import data
+import data.general
 import commands
-
-from typing import (
-    Optional
-)
 
 # read config
 options = options.YamlOptions("config.yml")
 options.read_config()
 
 # read the database
-data = data.DataManager("data.db")
+data = data.general.DataManager("data.db")
 
 # construct the bot
 client = discord.ext.commands.Bot(command_prefix=options.prefix)
@@ -20,6 +16,11 @@ client = discord.ext.commands.Bot(command_prefix=options.prefix)
 # cogs
 client.add_cog(commands.InfoCog(client, options, data))
 client.add_cog(commands.ManagementCog(client, options, data))
+
+# add a check
+@client.check
+async def source_check(ctx: discord.ext.commands.Context):
+    return not (ctx.guild is None or ctx.author.bot)
 
 
 @client.event

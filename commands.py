@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 
-import server_data
 from base import (
     BaseCog,
     has_permissions
@@ -10,6 +9,8 @@ from base import (
 from typing import (
     Optional
 )
+
+from data.server import *
 
 
 class InfoCog(BaseCog):
@@ -36,7 +37,7 @@ class ManagementCog(BaseCog):
         try:
             with self.data_manager.get_server(ctx.guild.id) as server:
                 server.add_allowed_channel(channel.id)
-        except server_data.ChannelExistsInListError:
+        except ChannelExistsInListError:
             await channel.send('This channel is already accepting bot commands!')
             return
 
@@ -53,10 +54,20 @@ class ManagementCog(BaseCog):
         try:
             with self.data_manager.get_server(ctx.guild.id) as server:
                 server.remove_allowed_channel(channel.id)
-        except server_data.ChannelNotInListError:
+        except ChannelNotInListError:
             await channel.send('This channel is not accepting bot commands!')
             return
 
         # send confirmation message
         await channel.send('This channel is no longer accepting bot commands!!')
+
+
+class AdministrationCog(BaseCog):
+    @commands.command(name='grant')
+    async def grant_command(self, ctx: commands.Context, user: discord.User):
+        if not await self.programmer_access_check(ctx):
+            await ctx.send('The `grant` command is reserved for administrators only!')
+            return
+
+        # parse the grant
 
