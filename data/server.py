@@ -1,19 +1,34 @@
 import sqlite3
+from data import user
 from typing import (
-    List
+    List,
+    Optional
 )
 
 
-class ChannelExistsInListError(Exception):
+class ListAccessError(Exception):
     pass
 
 
-class ChannelNotInListError(Exception):
+class EntryExistsInListError(ListAccessError):
     pass
+
+
+class EntryNotInListError(ListAccessError):
+    pass
+
+
+# CREATE TABLE servers (
+#   server_id INTEGER PRIMARY KEY,
+#   allowed_channels TEXT NOT NULL,
+#   self_roles TEXT NOT NULL,
+#   auto_role INTEGER NOT NULL,
+#   flags INTEGER NOT NULL
+# )
 
 
 class Server(object):
-    def __init__(self, c: sqlite3.Connection, id: int, ac: str, flags: int) -> None:
+    def __init__(self, c: sqlite3.Connection, id: int, ac: str, sr: str, flags: int) -> None:
         self.conn: sqlite3.Connection = c
         self.id: int = id
         self.flags: int = flags
@@ -29,6 +44,17 @@ class Server(object):
 
         self.allowed_channels: List[int] = channels
 
+        # transform the self roles into a list of roles
+        self_roles = []
+        if sr:
+            for role in sr.split(','):
+                try:
+                    self_roles.append(int(role))
+                except ValueError:
+                    print('Malformed role! Skipping.')
+
+        self.self_roles: List[int] = self_roles
+
     def __enter__(self) -> 'Server':
         return self
 
@@ -39,21 +65,6 @@ class Server(object):
 
     # HELPERS
 
-    def _assure_exp_table(self) -> None:
-        # execute a quick statement
-        result = self.conn.execute('SELECT name FROM sqlite_master WHERE type=\'table\' AND name=\'server_%s\'' % self.id)
-
-        if result.fetchone() is None:
-            # exp table doesn't exist, create it
-            self.conn.execute("""
-            CREATE TABLE server_%s (
-                user_id INTEGER PRIMARY KEY,
-                level INTEGER NOT NULL,
-                cur_exp INTEGER NOT NULL,
-                total_exp INTEGER NOT NULL
-            )
-            """ % self.id)
-
     def _update_allowed_channels(self) -> None:
         # serialize the list
         list_repr = ','.join(str(chnl_id) for chnl_id in self.allowed_channels)
@@ -61,12 +72,19 @@ class Server(object):
         # update the record
         self.conn.execute('UPDATE servers SET allowed_channels=? WHERE server_id=?', (list_repr, self.id))
 
+    def _update_self_roles(self) -> None:
+        # serialize the list
+        list_repr = ','.join(str(role) for role in self.self_roles)
+
+        # update the record
+        self.conn.execute('UPDATE servers SET self_roles=? WHERE server_id=?', (list_repr, self.id))
+
     # SETTERS
 
     def add_allowed_channel(self, channel_id: int) -> None:
         # check if channel already exists
         if any(c == channel_id for c in self.allowed_channels):
-            raise ChannelExistsInListError()
+            raise EntryExistsInListError()
 
         # update the allowed channels
         self.allowed_channels.append(channel_id)
@@ -79,10 +97,31 @@ class Server(object):
         try:
             self.allowed_channels.remove(channel_id)
         except ValueError:
-            raise ChannelNotInListError()
+            raise EntryNotInListError()
 
         # update sql
         self._update_allowed_channels()
+
+    def add_self_roles(self, role_id: int) -> None:
+        # check if role already exists
+        if any(r == role_id for r in self.self_roles):
+            raise EntryExistsInListError()
+
+        # update the self roles list
+        self.self_roles.append(role_id)
+
+        # update sql
+        self._update_self_roles()
+
+    def remove_self_roles(self, role_id: int) -> None:
+        # update the self roles list
+        try:
+            self.self_roles.remove(role_id)
+        except ValueError:
+            raise EntryNotInListError()
+
+        # update sql
+        self._update_self_roles()
 
     # FLAGS ARE STORED BINARY FLAGS
     # so, the binary number 0010 would be stored as 2, and would have flags for certain values
@@ -99,6 +138,9 @@ class Server(object):
 
     def get_allowed_channels(self) -> List[int]:
         return self.allowed_channels
+
+    def get_self_roles(self) -> List[int]:
+        return self.self_roles
 
     def get_flags(self) -> int:
         return self.flags

@@ -27,6 +27,10 @@ class YamlOptions:
         with open(self.filename, "r+t") as file:
             options = load(file, Loader=CLoader)
 
+            if options is None:
+                print("Please fill in the configuration file!")
+                exit(1)
+
             if "token" not in options:
                 pure = False
                 options["token"] = "<bot token here>"
