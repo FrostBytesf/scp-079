@@ -47,7 +47,7 @@ class DataManager(object):
             return self.create_server(id, conn)
         else:
             # found the server!
-            return server.Server(conn, serv[0], serv[1], serv[2], serv[3])
+            return server.Server(conn, serv[0], serv[1], serv[2], serv[3], serv[4])
 
     def create_server(self, id: int, conn: Optional[sqlite3.Connection]) -> server.Server:
         # get a connection if none has been passed
@@ -58,13 +58,14 @@ class DataManager(object):
         # use defaults
         allowed_channels = ''
         self_roles = ''
+        auto_role = 0
         flags = self.SERVER_FLAGS
 
         # add the entry
-        conn.execute('INSERT INTO servers VALUES (?,?,?,?)', (id, allowed_channels, self_roles, flags))
+        conn.execute('INSERT INTO servers VALUES (?,?,?,?,?)', (id, allowed_channels, self_roles, auto_role, flags))
 
         # return a representation
-        return server.Server(conn, id, allowed_channels, self_roles, flags)
+        return server.Server(conn, id, allowed_channels, self_roles, auto_role, flags)
 
     def get_server_user(self, server_id: int, user_id: int) -> user.ServerUser:
         # try to find the user
