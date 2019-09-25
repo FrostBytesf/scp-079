@@ -28,6 +28,20 @@ class InfoCog(BaseCog):
 
 
 class ManagementCog(BaseCog):
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        with self.data_manager.get_server(member.guild.id) as server:
+            role_id = server.get_auto_role()
+
+            if role_id > 0:
+                # get the role
+                role = member.guild.get_role(role_id)
+
+                if role is None:
+                    server.set_auto_role(0)
+                else:
+                    await member.add_roles(role)
+
     @commands.command(name='allow')
     @has_permissions(discord.Permissions(0b100000))
     async def allow_command(self, ctx: commands.Context, channel: Optional[discord.TextChannel]):
@@ -65,6 +79,18 @@ class ManagementCog(BaseCog):
     @commands.group(name='roles')
     async def roles_command(self, ctx: commands.Context):
         pass
+
+    @roles_command.command(name='autorole')
+    async def roles_autorole_command(self, ctx: commands.Context, role: Optional[discord.Role]):
+        with self.data_manager.get_server(ctx.guild.id) as server:
+            if role is None:
+                # clear the role
+                server.set_auto_role(0)
+                await ctx.send('Auto role has been cleared!')
+            else:
+                # set the role
+                server.set_auto_role(role.id)
+                await ctx.send('Auto role has been set to %s!' % role.name)
 
     @roles_command.command(name='add')
     async def roles_add_command(self, ctx: commands.Context, role: discord.Role):
@@ -143,7 +169,7 @@ class LevellingCog(BaseCog):
             user = ctx.author
 
         # get user info
-        with self.data_manager.get_server_user(ctx.guild.id, ctx.author.id) as data_user:
+        with self.data_manager.get_server_user(ctx.guild.id, user.id) as data_user:
             # build an embed and send it
             embed = discord.Embed(title='level info for %s' % str(user), timestamp=datetime.datetime.now(),
                                   colour=discord.Colour.blue())

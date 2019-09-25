@@ -28,10 +28,11 @@ class EntryNotInListError(ListAccessError):
 
 
 class Server(object):
-    def __init__(self, c: sqlite3.Connection, id: int, ac: str, sr: str, flags: int) -> None:
+    def __init__(self, c: sqlite3.Connection, id: int, ac: str, sr: str, auto_role: int, flags: int) -> None:
         self.conn: sqlite3.Connection = c
         self.id: int = id
         self.flags: int = flags
+        self.auto_role: int = auto_role
 
         # transform the allowed channels into a list of channels
         channels = []
@@ -123,6 +124,13 @@ class Server(object):
         # update sql
         self._update_self_roles()
 
+    def set_auto_role(self, role_id: int) -> None:
+        # update the auto role id
+        self.auto_role = role_id
+
+        # update sql
+        self.conn.execute('UPDATE servers SET auto_role=? WHERE server_id=?', (self.flags, self.id))
+
     # FLAGS ARE STORED BINARY FLAGS
     # so, the binary number 0010 would be stored as 2, and would have flags for certain values
     def set_flags(self, flags: int):
@@ -141,6 +149,9 @@ class Server(object):
 
     def get_self_roles(self) -> List[int]:
         return self.self_roles
+
+    def get_auto_role(self) -> int:
+        return self.auto_role
 
     def get_flags(self) -> int:
         return self.flags
