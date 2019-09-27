@@ -1,7 +1,10 @@
 import sqlite3
 import random
 import time
-from data import flags
+from data import (
+    flags,
+    general
+)
 
 
 # CREATE TABLE users (
@@ -10,8 +13,8 @@ from data import flags
 #   badges INTEGER NOT NULL
 # )
 
-# CREATE TABLE server_49825363446805xxxx (
-#   user_id INTEGER PRIMARY KEY,
+# CREATE TABLE exp (
+#   serial TEXT PRIMARY KEY,
 #   level INTEGER NOT NULL,
 #   total_exp INTEGER NOT NULL,
 #   cooldown INTEGER NOT NULL
@@ -67,11 +70,23 @@ class ServerUser(GlobalUser):
         super(ServerUser, self).__init__(conn, id, desc, badges)
 
         self.server_id: int = server_id
-        self.__table_name: str = 'server_' + str(server_id)
 
         self.level: int = level
         self.total_exp: int = total_exp
         self.cooldown: int = cooldown
+
+    def __enter__(self) -> 'ServerUser':
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # TODO: Make context management
+        self.conn.commit()
+        self.conn.close()
+
+    # SERIAL HELPERS
+    @property
+    def serial(self) -> str:
+        return general.DataManager.get_serial(self.id, self.server_id)
 
     # LEVEL HELPERS
 
@@ -92,13 +107,13 @@ class ServerUser(GlobalUser):
         self.level = level
 
         # update record
-        self.conn.execute(f'UPDATE {self.__table_name} SET level=? WHERE user_id=?', (self.level, self.id))
+        self.conn.execute('UPDATE exp SET level=? WHERE serial=?', (self.level, self.serial))
 
     def set_total_exp(self, total_exp: int) -> None:
         self.total_exp = total_exp
 
         # update record
-        self.conn.execute(f'UPDATE {self.__table_name} SET total_exp=? WHERE user_id=?', (self.total_exp, self.id))
+        self.conn.execute('UPDATE exp SET total_exp=? WHERE serial=?', (self.total_exp, self.serial))
 
     def award_exp(self) -> bool:
         self.set_total_exp(self.total_exp + self.__get_random_exp())
@@ -116,7 +131,7 @@ class ServerUser(GlobalUser):
             self.cooldown = int(time.time()) + self.COOLDOWN_TIME
 
             # update record
-            self.conn.execute(f'UPDATE {self.__table_name} SET cooldown=? WHERE user_id=?', (self.cooldown, self.id))
+            self.conn.execute('UPDATE exp SET cooldown=? WHERE serial=?', (self.cooldown, self.serial))
             return True
         else:
             return False

@@ -22,13 +22,28 @@ class EntryNotInListError(ListAccessError):
 #   server_id INTEGER PRIMARY KEY,
 #   allowed_channels TEXT NOT NULL,
 #   self_roles TEXT NOT NULL,
+#   level_roles TEXT NOT NULL,
 #   auto_role INTEGER NOT NULL,
 #   flags INTEGER NOT NULL
 # )
 
 
+class LevelledRole(object):
+    def __init__(self, role_id: int, levels: List[int]):
+        self.role_id: int = role_id
+        self.levels: List[int] = levels
+
+    def __str__(self):
+        st = str(self.role_id)
+
+        for level in self.levels:
+            st += ':' + str(level)
+
+        return st
+
+
 class Server(object):
-    def __init__(self, c: sqlite3.Connection, id: int, ac: str, sr: str, auto_role: int, flags: int) -> None:
+    def __init__(self, c: sqlite3.Connection, id: int, ac: str, sr: str, lr: str, auto_role: int, flags: int) -> None:
         self.conn: sqlite3.Connection = c
         self.id: int = id
         self.flags: int = flags
@@ -44,6 +59,28 @@ class Server(object):
                     print('Malformed channel! Skipping.')
 
         self.allowed_channels: List[int] = channels
+
+        # transform the level roles into a list of roles
+        level_roles = []
+        if lr:
+            for raw_level_str in lr.split(','):
+                try:
+                    level_info = raw_level_str.split(':')
+                    if len(level_info) < 2:
+                        print('Level role is missing level! Skipping.')
+                        continue
+
+                    level_role_id = int(level_info[0])
+                    level_role_list = []
+
+                    for level in level_info[1:]:
+                        level_role_list.append(int(level))
+
+                    level_roles.append(LevelledRole(level_role_id, level_role_list))
+                except ValueError:
+                    print('Malformed level role! Skipping.')
+
+        self.level_roles: List[LevelledRole] = level_roles
 
         # transform the self roles into a list of roles
         self_roles = []
@@ -79,6 +116,13 @@ class Server(object):
 
         # update the record
         self.conn.execute('UPDATE servers SET self_roles=? WHERE server_id=?', (list_repr, self.id))
+
+    def _update_level_roles(self) -> None:
+        # serialize the list
+        list_repr = ','.join(str(level) for level in self.level_roles)
+
+        # update the record
+        self.conn.execute('UPDATE servers SET level_roles=? WHERE server_id=?', (list_repr, self.id))
 
     # SETTERS
 
@@ -124,12 +168,34 @@ class Server(object):
         # update sql
         self._update_self_roles()
 
+    def add_level_roles(self, role_id: int, level: List[int]):
+        # check if role already exists
+        if any(l.role_id == role_id for l in self.level_roles):
+            raise EntryExistsInListError()
+
+        # update the level roles list
+        self.level_roles.append(LevelledRole(role_id, level))
+
+        # update sql
+        self._update_level_roles()
+
+    def remove_level_roles(self, role_id: int):
+        # try to find the level role in the list
+        for level_role in self.level_roles[:]:
+            if level_role.role_id == role_id:
+                self.level_roles.remove(level_role)
+
+                self._update_level_roles()
+                return
+
+        raise EntryNotInListError()
+
     def set_auto_role(self, role_id: int) -> None:
         # update the auto role id
         self.auto_role = role_id
 
         # update sql
-        self.conn.execute('UPDATE servers SET auto_role=? WHERE server_id=?', (self.flags, self.id))
+        self.conn.execute('UPDATE servers SET auto_role=? WHERE server_id=?', (self.auto_role, self.id))
 
     # FLAGS ARE STORED BINARY FLAGS
     # so, the binary number 0010 would be stored as 2, and would have flags for certain values
@@ -149,6 +215,12 @@ class Server(object):
 
     def get_self_roles(self) -> List[int]:
         return self.self_roles
+
+    def get_level_roles(self) -> List[LevelledRole]:
+        return self.level_roles
+
+    def get_level_roles_at(self, level: int) -> List[int]:
+        return [x.role_id for x in self.level_roles if any(lvl == level for lvl in x.levels)]
 
     def get_auto_role(self) -> int:
         return self.auto_role

@@ -28,6 +28,8 @@ class InfoCog(BaseCog):
 
 
 class ManagementCog(BaseCog):
+    LIST_SEPARATOR = ',\n'
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         with self.data_manager.get_server(member.guild.id) as server:
@@ -76,12 +78,43 @@ class ManagementCog(BaseCog):
         # send confirmation message
         await channel.send('This channel is no longer accepting bot commands!!')
 
-    @commands.group(name='roles')
+    @commands.group(name='roles', invoke_without_command=True)
     async def roles_command(self, ctx: commands.Context):
-        pass
+        # do check
+        if not await self.allowed_channel_check(ctx):
+            return
+
+        with self.data_manager.get_server(ctx.guild.id) as server:
+            embed = discord.Embed(title='role info for %s' % ctx.guild.name, timestamp=datetime.datetime.now(),
+                                  colour=discord.Colour.blue())
+
+            embed.description = 'use the .roles add, .roles remove to add roles to the selfrole join system.\n' \
+                                'the levelroles feature also exist, use .roles levelroles'
+
+            auto_role = ctx.guild.get_role(server.get_auto_role())
+            if auto_role is not None:
+                embed.add_field(name='AUTOROLE', value=auto_role.name)
+
+            sr_description = ''
+            for self_role_id in server.get_self_roles():
+                self_role = ctx.guild.get_role(self_role_id)
+                if self_role is not None:
+                    sr_description += self_role.name + self.LIST_SEPARATOR
+
+            sr_description.strip(self.LIST_SEPARATOR)
+            if len(sr_description) > 0:
+                embed.add_field(name='SELFROLES', value=sr_description)
+
+            embed.set_footer(text='management command', icon_url=ctx.guild.icon_url_as())
+
+            await ctx.send(embed=embed)
 
     @roles_command.command(name='autorole')
     async def roles_autorole_command(self, ctx: commands.Context, role: Optional[discord.Role]):
+        # do check
+        if not await self.allowed_channel_check(ctx):
+            return
+
         with self.data_manager.get_server(ctx.guild.id) as server:
             if role is None:
                 # clear the role
@@ -146,6 +179,38 @@ class ManagementCog(BaseCog):
                         except discord.Forbidden:
                             await ctx.send('I do not have sufficient permission.')
 
+    @roles_command.group(name='levelroles')
+    async def roles_levelroles_command(self, ctx: commands.Context):
+        pass
+
+    @roles_levelroles_command.command(name='add')
+    async def roles_levelroles_add_command(self, ctx: commands.Context, role: discord.Role, levels: commands.Greedy[int]):
+        # do check
+        if not await self.allowed_channel_check(ctx):
+            return
+
+        with self.data_manager.get_server(ctx.guild.id) as server:
+            try:
+                server.add_level_roles(role.id, levels)
+
+                await ctx.send('The role %s has been given a level rule!' % role.name)
+            except EntryExistsInListError:
+                await ctx.send('The role %s has level rules set! Delete them to re-set them!' % role.name)
+
+    @roles_levelroles_command.command(name='remove')
+    async def roles_levelroles_remove_command(self, ctx: commands.Context, role: discord.Role):
+        # do check
+        if not await self.allowed_channel_check(ctx):
+            return
+
+        with self.data_manager.get_server(ctx.guild.id) as server:
+            try:
+                server.remove_level_roles(role.id)
+
+                await ctx.send('Level rule removed!')
+            except EntryNotInListError:
+                await ctx.send('That role does not have any level rules set!')
+
 
 class LevellingCog(BaseCog):
     BAR_LENGTH = 20
@@ -162,8 +227,29 @@ class LevellingCog(BaseCog):
                     # if we have levelled up
                     print(f'{str(message.author)} has levelled up to {user.get_level()} yes')
 
+                    # award any levelling roles
+                    with self.data_manager.get_server(message.guild.id) as server:
+                        roles = server.get_level_roles_at(user.get_level())
+                        given_roles = []
+
+                        for role in roles:
+                            given_role = message.guild.get_role(role)
+
+                            if given_role is not None:
+                                given_roles.append(given_role)
+                            else:
+                                server.remove_level_roles(role)
+
+                        # award roles
+                        if len(given_roles) > 0:
+                            await message.author.add_roles(given_roles)
+
     @commands.command(name='level')
     async def level_command(self, ctx: commands.Context, user: Optional[discord.User]) -> None:
+        # do check
+        if not await self.allowed_channel_check(ctx):
+            return
+
         # fill in user if none
         if user is None:
             user = ctx.author
