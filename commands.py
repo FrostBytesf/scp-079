@@ -176,6 +176,7 @@ class ManagementCog(BaseCog):
                         # if so, then grant the role
                         try:
                             await ctx.author.add_roles(other_role, 'Self role.')
+                            await ctx.send('Given role %s to user %s!' % (other_role.name, str(ctx.author)))
                         except discord.Forbidden:
                             await ctx.send('I do not have sufficient permission.')
 
