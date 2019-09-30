@@ -95,7 +95,7 @@ class ServerUser(GlobalUser):
         if level < 1:
             return 0
 
-        return 64 * (level * (float(level) / 5)) + 25
+        return 64 * level ** 2 + 25
 
     @staticmethod
     def __get_random_exp() -> int:
