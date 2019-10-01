@@ -243,7 +243,7 @@ class LevellingCog(BaseCog):
 
                         # award roles
                         if len(given_roles) > 0:
-                            await message.author.add_roles(given_roles)
+                            await message.author.add_roles(tuple(given_roles))
 
     @commands.command(name='level')
     async def level_command(self, ctx: commands.Context, user: Optional[discord.User]) -> None:
