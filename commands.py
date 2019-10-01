@@ -221,29 +221,32 @@ class LevellingCog(BaseCog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # prepare to update levelling
+        level_up = False;
         with self.data_manager.get_server_user(message.guild.id, message.author.id) as user:
             if user.check_cooldown():
                 # award exp
                 if user.award_exp():
                     # if we have levelled up
+                    level_up = True;
                     print(f'{str(message.author)} has levelled up to {user.get_level()} yes')
 
-                    # award any levelling roles
-                    with self.data_manager.get_server(message.guild.id) as server:
-                        roles = server.get_level_roles_at(user.get_level())
-                        given_roles = []
+        # award any levelling roles if we have levelled up
+        if level_up:
+            with self.data_manager.get_server(message.guild.id) as server:
+                roles = server.get_level_roles_at(user.get_level())
+                given_roles = []
 
-                        for role in roles:
-                            given_role = message.guild.get_role(role)
+                for role in roles:
+                    given_role = message.guild.get_role(role)
 
-                            if given_role is not None:
-                                given_roles.append(given_role)
-                            else:
-                                server.remove_level_roles(role)
+                    if given_role is not None:
+                        given_roles.append(given_role)
+                    else:
+                        server.remove_level_roles(role)
 
-                        # award roles
-                        if len(given_roles) > 0:
-                            await message.author.add_roles(tuple(given_roles))
+                # award roles
+                if len(given_roles) > 0:
+                    await message.author.add_roles(tuple(given_roles))
 
     @commands.command(name='level')
     async def level_command(self, ctx: commands.Context, user: Optional[discord.User]) -> None:
