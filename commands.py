@@ -110,6 +110,7 @@ class ManagementCog(BaseCog):
             await ctx.send(embed=embed)
 
     @roles_command.command(name='autorole')
+    @has_permissions(discord.Permissions(0b100000))
     async def roles_autorole_command(self, ctx: commands.Context, role: Optional[discord.Role]):
         # do check
         if not await self.allowed_channel_check(ctx):
@@ -126,6 +127,7 @@ class ManagementCog(BaseCog):
                 await ctx.send('Auto role has been set to %s!' % role.name)
 
     @roles_command.command(name='add')
+    @has_permissions(discord.Permissions(0b100000))
     async def roles_add_command(self, ctx: commands.Context, role: discord.Role):
         # do check
         if not await self.allowed_channel_check(ctx):
@@ -142,6 +144,7 @@ class ManagementCog(BaseCog):
         await ctx.send('The role %s is now a self role!' % role.name)
 
     @roles_command.command(name='remove')
+    @has_permissions(discord.Permissions(0b100000))
     async def roles_remove_command(self, ctx: commands.Context, role: discord.Role):
         # do check
         if not await self.allowed_channel_check(ctx):
@@ -185,6 +188,7 @@ class ManagementCog(BaseCog):
         pass
 
     @roles_levelroles_command.command(name='add')
+    @has_permissions(discord.Permissions(0b100000))
     async def roles_levelroles_add_command(self, ctx: commands.Context, role: discord.Role, levels: commands.Greedy[int]):
         # do check
         if not await self.allowed_channel_check(ctx):
@@ -199,6 +203,7 @@ class ManagementCog(BaseCog):
                 await ctx.send('The role %s has level rules set! Delete them to re-set them!' % role.name)
 
     @roles_levelroles_command.command(name='remove')
+    @has_permissions(discord.Permissions(0b100000))
     async def roles_levelroles_remove_command(self, ctx: commands.Context, role: discord.Role):
         # do check
         if not await self.allowed_channel_check(ctx):
