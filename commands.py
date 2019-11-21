@@ -178,7 +178,7 @@ class ManagementCog(BaseCog):
                     if other_role == role:
                         # if so, then grant the role
                         try:
-                            await ctx.author.add_roles(other_role, 'Self role.')
+                            await ctx.author.add_roles(other_role, reason='Self role.')
                             await ctx.send('Given role %s to user %s!' % (other_role.name, str(ctx.author)))
                         except discord.Forbidden:
                             await ctx.send('I do not have sufficient permission.')
@@ -226,13 +226,13 @@ class LevellingCog(BaseCog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # prepare to update levelling
-        level_up = False;
+        level_up = False
         with self.data_manager.get_server_user(message.guild.id, message.author.id) as user:
             if user.check_cooldown():
                 # award exp
                 if user.award_exp():
                     # if we have levelled up
-                    level_up = True;
+                    level_up = True
                     print(f'{str(message.author)} has levelled up to {user.get_level()} yes')
 
         # award any levelling roles if we have levelled up
