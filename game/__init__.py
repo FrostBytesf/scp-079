@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 
 class WordmapWord:
@@ -61,12 +61,17 @@ class Wordmap:
         return i
 
     def quick_sort(self, lo: int, hi: int):
-        partition = self.__partition_quick_sort(lo, hi)
+        part_list = [(lo, hi)]
 
-        if not partition == lo:
-            self.quick_sort(lo, partition - 1)
-        if not partition == hi:
-            self.quick_sort(partition + 1, hi)
+        while len(part_list) > 0:
+            low, high = part_list.pop()
+
+            new_part = self.__partition_quick_sort(low, high)
+
+            if not new_part == low:
+                part_list.append((low, new_part - 1))
+            if not new_part == high:
+                part_list.append((new_part + 1, high))
 
     def get_words(self, limit: int) -> List[WordmapWord]:
         self.quick_sort(0, len(self.words) - 1)
