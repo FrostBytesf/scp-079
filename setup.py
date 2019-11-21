@@ -17,6 +17,7 @@ client = discord.ext.commands.Bot(command_prefix=options.prefix)
 client.add_cog(commands.InfoCog(client, options, data))
 client.add_cog(commands.ManagementCog(client, options, data))
 client.add_cog(commands.LevellingCog(client, options, data))
+client.add_cog(commands.FunCog(client, options, data))
 
 # add a check
 @client.check
