@@ -53,7 +53,7 @@ class FunCog(BaseCog):
                             english = False
                             break
 
-                    if english:
+                    if english and not clean_word.strip() == '':
                         wordmap_list.inc_word(clean_word)
 
             top_words = wordmap_list.get_words(50)
