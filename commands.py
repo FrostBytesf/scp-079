@@ -56,7 +56,7 @@ class FunCog(BaseCog):
                     if english and not clean_word.strip() == '':
                         wordmap_list.inc_word(clean_word)
 
-            top_words = wordmap_list.get_words(50)
+            top_words = wordmap_list.get_words(100)
             await ctx.send('```\n' + ' '.join(str(word) for word in top_words) + '\n```')
         except discord.Forbidden:
             await ctx.send('I have no access to the channel!')
