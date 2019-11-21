@@ -30,7 +30,7 @@ class InfoCog(BaseCog):
 
 
 class FunCog(BaseCog):
-    ENGLISH_SYMBOLS = [',', '\'', '.', '?', '.', '-']
+    IGNORE_SYMBOLS = [',', '\'', '.', '?', '.', '-']
 
     @commands.command(name='wordmap')
     async def wordmap_command(self, ctx: commands.Context, channel: discord.TextChannel):
@@ -45,17 +45,19 @@ class FunCog(BaseCog):
                     clean_word = ''
 
                     for letter in word:
-                        if letter.isalpha() or any(letter == x for x in self.ENGLISH_SYMBOLS):
+                        if letter.isalpha():
                             clean_word += letter.lower()
-
-                        english = False
-                        break
+                        elif any(letter == x for x in self.IGNORE_SYMBOLS):
+                            continue
+                        else:
+                            english = False
+                            break
 
                     if english:
-                        wordmap_list.inc_word(words)
+                        wordmap_list.inc_word(clean_word)
 
             top_words = wordmap_list.get_words(50)
-            await ctx.send('\n'.join('%d : %s' % (word.count, word.word) for word in top_words))
+            await ctx.send('```\n' + ' '.join(str(word) for word in top_words) + '\n```')
         except discord.Forbidden:
             await ctx.send('I have no access to the channel!')
 
