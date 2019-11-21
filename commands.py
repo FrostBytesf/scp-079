@@ -1,6 +1,8 @@
 import discord
 import datetime
+import game
 from discord.ext import commands
+from io import StringIO
 
 from base import (
     BaseCog,
@@ -25,6 +27,37 @@ class InfoCog(BaseCog):
             text = 'Pong! `%sms`' % round(self.bot.latency * 1000)
 
         await ctx.send(text)
+
+
+class FunCog(BaseCog):
+    ENGLISH_SYMBOLS = [',', '\'', '.', '?', '.', '-']
+
+    @commands.command(name='wordmap')
+    async def wordmap_command(self, ctx: commands.Context, channel: discord.TextChannel):
+        try:
+            wordmap_list = game.Wordmap()
+
+            async for message in channel.history(limit=1000):
+                words = message.clean_content.split(' ')
+
+                for word in words:
+                    english = True
+                    clean_word = ''
+
+                    for letter in word:
+                        if letter.isalpha() or any(letter == x for x in self.ENGLISH_SYMBOLS):
+                            clean_word += letter.lower()
+
+                        english = False
+                        break
+
+                    if english:
+                        wordmap_list.inc_word(words)
+
+            top_words = wordmap_list.get_words(50)
+            await ctx.send('\n'.join('%d : %s' % (word.count, word.word) for word in top_words))
+        except discord.Forbidden:
+            await ctx.send('I have no access to the channel!')
 
 
 class ManagementCog(BaseCog):
@@ -251,7 +284,7 @@ class LevellingCog(BaseCog):
 
                 # award roles
                 if len(given_roles) > 0:
-                    await message.author.add_roles(tuple(given_roles))
+                    await message.author.add_roles(tuple(given_roles), reason='Level roles')
 
     @commands.command(name='level')
     async def level_command(self, ctx: commands.Context, user: Optional[discord.User]) -> None:
