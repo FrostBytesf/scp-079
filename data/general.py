@@ -69,29 +69,60 @@ class DataManager(object):
         # add the entry
         conn.execute('INSERT INTO servers VALUES (?,?,?,?,?,?)',
                      (id, allowed_channels, self_roles, level_roles, auto_role, flags))
+        conn.commit()
 
         # return a representation
         return server.Server(conn, id, allowed_channels, self_roles, level_roles, auto_role, flags)
+
+    def get_user(self, user_id: int) -> user.GlobalUser:
+        # try to find the user
+        # get a new connection
+        conn = sqlite3.Connection(self.filename)
+
+        # find that user!
+        u = conn.execute('SELECT * FROM users WHERE user_id=?', (user_id,)).fetchone()
+        if u is None:
+            # user does not exist!
+            return self.create_user(user_id, conn)
+        else:
+            return user.GlobalUser(conn, user_id, u[1], u[2])
+
+    def create_user(self, user_id: int, conn: Optional[sqlite3.Connection]) -> user.GlobalUser:
+        if conn is None:
+            conn = sqlite3.Connection(self.filename)
+
+        # set some defaults
+        desc = 'No description set...'
+        badges = 0
+
+        # create the user in database
+        conn.execute('INSERT INTO users VALUES (?,?,?)', (user_id, desc, badges))
+        conn.commit()
+
+        return user.GlobalUser(conn, user_id, desc, badges)
 
     def get_server_user(self, server_id: int, user_id: int) -> user.ServerUser:
         # try to find the user
         # get a new connection
         conn = sqlite3.Connection(self.filename)  # MAGIC VALUE
 
+        # fetch an existing user
+        guser = self.get_user(user_id)
+
         # find the user
         u = conn.execute('SELECT * FROM exp WHERE serial=?', (self.get_serial(server_id, user_id),)).fetchone()
         if u is None:
             # user does not exist! create a new user
-            return self.create_server_user(server_id, user_id, conn)
+            return self.create_server_user(server_id, user_id, conn, guser)
         else:
             # separate the serial
             uid, sid = self.split_serial(u[0])
 
             # create a new user object!
-            # warning! this is a hotfix, and should be changed immediately.
-            return user.ServerUser(conn, uid, 'not implemented', 0, sid, u[1], u[2], u[3])
+            return user.ServerUser(conn, uid, guser.get_description(), guser.get_badges().as_int(), sid, u[1], u[2], u[3])
 
-    def create_server_user(self, server_id: int, user_id: int, conn: Optional[sqlite3.Connection]) -> user.ServerUser:
+    def create_server_user(self, server_id: int, user_id: int, conn: Optional[sqlite3.Connection],
+                           guser: Optional[user.GlobalUser]) -> user.ServerUser:
         if conn is None:
             conn = sqlite3.Connection(self.filename)  # MAGIC VALUE
 
@@ -102,9 +133,8 @@ class DataManager(object):
 
         # create the user
         conn.execute('INSERT INTO exp VALUES (?,?,?,?)', (self.get_serial(server_id, user_id), level, total_exp, cooldown))
-
         conn.commit()
 
         # return a representation
-        # warning! this is a hotfix, and should be changed immediately.
-        return user.ServerUser(conn, user_id, 'not implemented', 0, server_id, level, total_exp, cooldown)
+        return user.ServerUser(conn, user_id, guser.get_description(), guser.get_badges().as_int(), server_id, level,
+                               total_exp, cooldown)
