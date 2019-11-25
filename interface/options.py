@@ -103,9 +103,12 @@ class OptionsLoader:
             with open(self.__filename, "wt") as file:
                 dumper = Dumper(stream=file)
 
-                dumper.open()
-                for field in fields:
-                    dumper.represent_scalar(field.name, field.value)
-                dumper.close()
+                try:
+                    dumper.open()
+                    for field in fields:
+                        dumper.represent_scalar(field.name, field.value)
+                    dumper.close()
+                finally:
+                    dumper.dispose()
 
             raise OptionsError('Config is missing some members! Fill them out and try again.')
