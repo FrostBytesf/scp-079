@@ -1,11 +1,13 @@
 import os.path
+from inspect import signature, Parameter
 
 from yaml import load
 from typing import (
     List,
     Any,
+    Callable,
     Optional,
-    Type
+    get_type_hints
 )
 
 try:
@@ -15,86 +17,109 @@ except ImportError:
 
 
 class Option:
-    def __init__(self, name: str, default: Any, ttype: Type):
-        self.__name: str = name
-        self.__type: Type = ttype
-
-        self.__default: Any = default
-        self.__value: Optional[Any] = None
+    def __init__(self, func: Callable):
+        self.__func: Callable = func
+        self.__name: str = func.__name__
 
     @property
     def name(self) -> str:
         return self.__name
 
     @property
-    def value_type(self) -> Type:
-        return self.__type
+    def func(self):
+        return self.__func
+
+
+def config_option(func) -> Option:
+    return Option(func)
+
+
+class OptionInstance:
+    def __init__(self, option: Option, inst: Any):
+        self.__option: Option = option
+        self.__inst: Any = inst
+
+        self.__value: Any = None
 
     @property
-    def default(self) -> Any:
-        return self.__default
-
-    def __get__(self, instance, owner) -> Any:
-        # return the value when retrieved from an owner class
-        return self.value
-
-    def __set__(self, instance, value) -> None:
-        raise AttributeError(self.name)
+    def name(self):
+        return self.__option.name
 
     @property
-    def value(self) -> Any:
-        if self.__value is not None:
-            return self.__value
-        else:
-            return self.__default
+    def value(self):
+        return self.__value
 
-    def set_value(self, value: Any) -> None:
-        self.__value = value
+    def return_default(self):
+        self.return_value(None)
+
+    def return_value(self, value: Any):
+        func = self.__option.func
+        sig = signature(func)
+
+        kwargs = {}
+
+        for i, param in enumerate(sig.parameters.values()):
+            if i == 0:
+                if param.name == 'self':
+                    kwargs[param.name] = self.__inst
+                    continue
+
+            default = None
+            if param.default != Parameter.empty:
+                default = param.default
+
+            if value is None:
+                value = default
+
+            # stash value for later reference
+            self.__value = value
+
+            if param.annotation == Parameter.empty or param.annotation == type(value):
+                kwargs[param.name] = value
+                break
+
+        func(**kwargs)
 
 
 class OptionsError(Exception):
     def __init__(self, message: str) -> None:
         self.message = message
 
+    def __str__(self) -> str:
+        return self.message
+
 
 class OptionsLoader:
     def __init__(self, filename: str) -> None:
         self.__filename: str = filename
-        self.token: str = ""
-        self.prefix: str = ""
 
         if not os.path.exists(self.__filename):
             open(self.__filename, "w").close()
 
     def read_to_object(self, obj: object):
-        fields = obj.__dict__
+        fields = type(obj).__dict__
         options = []
 
         for value in fields.values():
             if isinstance(value, Option):
-                options.append(value)
+                options.append(OptionInstance(value, obj))
 
         self.read_config(options)
 
-    def read_config(self, fields: List[Option]) -> None:
+    def read_config(self, fields: List[OptionInstance]) -> None:
         pure = True
 
         # get a scanner to read the yaml
         with open(self.__filename, "r+t") as file:
             options = load(file, Loader=Loader)
 
-            if options is None:
-                if len(fields) > 0:
-                    pure = False
-            else:
+            if len(fields) > 0:
                 for field in fields:
-                    if field.name in options:
+                    if options is not None and field.name in options:
                         # get the type
-                        if isinstance(options[field.name], field.value_type):
-                            field.set_value(options[field.name])
-                        else:
-                            pure = False
+                        field.return_value(options[field.name])
                     else:
+                        field.return_default()
                         pure = False
 
         # check if there were any missing members
