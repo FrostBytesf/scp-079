@@ -1,6 +1,6 @@
 import os.path
 
-from yaml import load, dump
+from yaml import load
 from typing import (
     List,
     Any,
@@ -43,7 +43,7 @@ class Option:
 
     @property
     def value(self) -> Any:
-        if self.__value is None:
+        if self.__value is not None:
             return self.__value
         else:
             return self.__default
@@ -100,13 +100,15 @@ class OptionsLoader:
         # check if there were any missing members
         if not pure:
             # write back to yaml
-            with open(self.__filename, "wt") as file:
+            with open(self.__filename, "w+t") as file:
                 dumper = Dumper(stream=file)
 
                 try:
                     dumper.open()
-                    for field in fields:
-                        dumper.represent_scalar(field.name, field.value)
+
+                    mapping = {field.name: field.value for field in fields}
+                    dumper.serialize(dumper.represent_mapping(None, mapping))
+
                     dumper.close()
                 finally:
                     dumper.dispose()
