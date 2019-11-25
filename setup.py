@@ -1,11 +1,7 @@
 import discord.ext.commands
-import options
+from interface import options
 import data.general
 import commands
-
-# read config
-options = options.YamlOptions("config.yml")
-options.read_config()
 
 # read the database
 data = data.general.DataManager("data.db")
