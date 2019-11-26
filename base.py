@@ -6,8 +6,7 @@ from interface.options import OptionsLoader
 
 
 class BaseCog(commands.Cog):
-    def __init__(self, bot: commands.Bot, options: OptionsLoader, data: DataManager):
-        self.options: OptionsLoader = options
+    def __init__(self, bot: commands.Bot, data: DataManager):
         self.data_manager: DataManager = data
         self.bot: commands.Bot = bot
 
