@@ -2,15 +2,10 @@ import discord
 import datetime
 import game
 from discord.ext import commands
-from io import StringIO
 
-from base import (
+from interface.base import (
     BaseCog,
     has_permissions
-)
-
-from typing import (
-    Optional
 )
 
 from data.server import *

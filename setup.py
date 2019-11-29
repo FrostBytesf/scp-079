@@ -1,5 +1,6 @@
 from interface import BotClient
 from interface.options import OptionsError
+from commands import *
 
 # add a check
 # @client.check
@@ -15,6 +16,11 @@ from interface.options import OptionsError
 
 try:
     bot = BotClient('config.yml')
+    bot.with_cogs(
+        ManagementCog,
+        LevellingCog,
+        FunCog
+    )
 
     bot.start()
 except OptionsError as err:
